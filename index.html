@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIDCHEX</title>
+    <style>
+        :root {
+            --bg: #121212;
+            --surface: #1e1e1e;
+            --border: #333;
+            --text: #e0e0e0;
+            --text-dim: #999;
+            --accent: #0066cc;
+            --accent-hover: #0052a3;
+            --success: #4ec9b0;
+            --error: #f14c4c;
+            --warning: #cca700;
+            --toolbar-h: 46px;
+            --footer-h: 32px;
+        }
+        
+        * { box-sizing: border-box; }
+
+        /* Custom Scrollbars (Width: 25px, persistent & interactive) */
+        * {
+            scrollbar-width: auto;
+            scrollbar-color: #444 var(--surface);
+        }
+        ::-webkit-scrollbar { width: 25px; height: 25px; }
+        ::-webkit-scrollbar-track { background: var(--surface); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; border: 5px solid var(--surface); }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        html, body {
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            background: #000;
+            color: var(--text);
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-size: 14px;
+            overflow: hidden;
+        }
+
+        #appContainer {
+            display: flex;
+            flex-direction: column;
+            padding: 0.5rem;
+            gap: 0.4rem;
+            max-width: 800px;
+            margin: 0 auto;
+            height: 100vh;
+            background: var(--bg);
+            opacity: 0;
+            transition: opacity 0.8s ease-in-out;
+            overflow: hidden;
+        }
+
+        #splashScreen {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 999999;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+        }
+
+        #splashScreen h1 { font-size: 2.2rem; margin: 0; letter-spacing: 4px; color: var(--accent); }
+
+        .progress-container { 
+            background: var(--surface); 
+            border: 1px solid var(--border); 
+            border-radius: 6px; 
+            padding: 0.4rem 0.6rem; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 0.25rem; 
+            flex-shrink: 0;
+        }
+        .progress-info { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: var(--text-dim); }
+        progress { width: 100%; height: 6px; appearance: none; border-radius: 3px; overflow: hidden; border: none; background: #2d2d2d; }
+        progress::-webkit-progress-bar { background: #000; }
+        progress::-webkit-progress-value { background: var(--accent); transition: width 0.2s; }
+
+        .content-container {
+            display: flex;
+            gap: 0.5rem;
+            flex: 1;
+            min-height: 0;
+            margin-bottom: calc(var(--toolbar-h) + var(--footer-h) + 0.5rem);
+        }
+
+        #log { 
+            background: var(--surface); 
+            color: #d4d4d4; 
+            padding: 0.4rem 0.6rem; 
+            flex: 0.7; 
+            min-height: 100px; /* Minimum 3 rows tall */
+            overflow-y: auto !important; 
+            font-family: monospace; 
+            font-size: 0.82rem; 
+            border: 1px solid var(--border); 
+            border-radius: 6px; 
+            white-space: pre-wrap; 
+            word-break: break-word;
+            order: 1;
+        }
+
+        .log-item { 
+            cursor: pointer; 
+            padding: 2px 4px; 
+            border-radius: 3px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+        }
+        .log-item:hover { background: #2a2a2a; }
+
+        .inline-retry-btn {
+            background: #333;
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 1px 5px;
+            font-size: 0.72rem;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .inline-retry-btn:hover { background: #444; }
+
+        .summary-row {
+            margin-top: 4px;
+            margin-bottom: 2px;
+            padding-bottom: 4px;
+            border-bottom: 1px dashed var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .preview-pane {
+            flex: 0.3;
+            min-width: 260px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.6rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            overflow-y: auto;
+            order: 2;
+        }
+
+        .preview-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .preview-content {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .preview-pane.collapsed .preview-content {
+            display: none;
+        }
+
+        .preview-pane.collapsed .preview-header-row .meta-chevron {
+            transform: rotate(180deg);
+        }
+
+        .preview-pane span.label {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        #previewVideo {
+            width: 100%;
+            height: 140px;
+            background: #000;
+            border-radius: 4px;
+            object-fit: contain;
+            border: 1px solid var(--border);
+        }
+
+        /* Collapsible Metadata Box with Triangle Indicator */
+        .meta-box {
+            font-size: 0.78rem;
+            color: var(--text-dim);
+            background: #181818;
+            padding: 0.5rem;
+            border-radius: 4px;
+            border: 1px solid #282828;
+            word-break: break-word;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .meta-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .meta-box strong {
+            color: var(--text);
+            font-size: 0.82rem;
+            word-break: break-all;
+        }
+
+        .meta-chevron {
+            width: 14px;
+            height: 14px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            transition: transform 0.3s ease;
+        }
+
+        .meta-box.collapsed .meta-chevron {
+            transform: rotate(180deg);
+        }
+
+        .meta-content {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+            margin-top: 0.3rem;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .meta-box.collapsed .meta-content {
+            display: none;
+        }
+
+        .toolbar { 
+            position: fixed;
+            bottom: var(--footer-h);
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 1rem);
+            max-width: 1100px;
+            height: var(--toolbar-h);
+            background: #000;
+            padding: 0.4rem 0.6rem; 
+            border: none; 
+            border-radius: 0; 
+            display: flex; 
+            gap: 0.5rem; 
+            align-items: center; 
+            justify-content: center; 
+            z-index: 9999;
+        }
+
+        footer {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 1rem);
+            max-width: 1100px;
+            height: var(--footer-h);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text-dim);
+            font-size: 0.75rem;
+            border-top: none;
+            padding: 0 0.5rem;
+            background: #000;
+            z-index: 10000;
+        }
+
+        footer .footer-center {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        /* Buttons & Inputs */
+        select, button, input[type="number"] { 
+            background: #2d2d2d; 
+            color: var(--text); 
+            border: 1px solid var(--border); 
+            padding: 0.45rem 0.7rem; 
+            font-size: 0.85rem; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        select.footer-lang-select {
+            padding: 0.15rem 0.4rem;
+            font-size: 0.75rem;
+            height: 24px;
+        }
+
+        button.icon-btn {
+            padding: 0.45rem;
+            width: 36px;
+            height: 36px;
+            background: #252525;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        button.primary { background: var(--accent); border-color: var(--accent); color: white; }
+        button.primary:hover { background: var(--accent-hover); }
+        button.danger { background: #8b0000; border-color: #a00000; color: white; }
+        button.danger:hover:not(:disabled) { background: #a00000; }
+        button:hover:not(:disabled) { background: #3d3d3d; }
+        button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .svg-icon {
+            width: 18px;
+            height: 18px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            pointer-events: none;
+        }
+
+        /* Modals */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 200000;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .modal-content {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            max-width: 480px;
+            width: 100%;
+            padding: 1.2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.8rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.4rem;
+        }
+
+        .modal-content h3 { margin: 0; color: var(--accent); font-size: 1.1rem; }
+        .modal-content p, .modal-content ul { font-size: 0.85rem; color: var(--text); line-height: 1.4; }
+        .modal-content ul { padding-left: 1.2rem; }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.8rem;
+            font-size: 0.85rem;
+        }
+
+        .success { color: var(--success); }
+        .error { color: var(--error); }
+        .warning { color: var(--warning); }
+
+        @media (max-width: 768px) {
+            html, body {
+                height: 100vh;
+                overflow: hidden;
+            }
+            #appContainer {
+                height: 100vh;
+                overflow: hidden;
+                padding-bottom: calc(var(--toolbar-h) + var(--footer-h) + 0.8rem);
+            }
+            .content-container {
+                flex-direction: column;
+                flex: 1;
+                min-height: 0;
+                overflow: hidden;
+            }
+            .preview-pane {
+                width: 100%;
+                order: 1;
+                flex-shrink: 0;
+                max-height: 40vh;
+            }
+            #log {
+                flex: 1;
+                min-height: 100px;
+                overflow-y: auto !important;
+                order: 2;
+            }
+            #previewVideo {
+                height: 130px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="splashScreen">
+        <h1>VIDCHEX</h1>
+    </div>
+
+    <div id="appContainer">
+        <!-- Settings & Instructions Modal -->
+        <div id="settingsModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modalTitle">Settings & Instructions</h3>
+                    <button id="closeSettingsBtn" class="icon-btn">✕</button>
+                </div>
+                
+                <div class="setting-row">
+                    <label for="modalLangSelect" id="lblLang">Language:</label>
+                    <select id="modalLangSelect" class="lang-select-input">
+                        <option value="en">EN</option>
+                        <option value="es">ES</option>
+                        <option value="fr">FR</option>
+                        <option value="de">DE</option>
+                        <option value="ch">CH</option>
+                    </select>
+                </div>
+
+                <div class="setting-row">
+                    <label for="depthSelectModal" id="lblDepthMode">Analysis Depth Mode:</label>
+                    <select id="depthSelectModal">
+                        <option value="fast" id="optFast" selected>Fast Check (Metadata + Seek)</option>
+                        <option value="deep" id="optDeep">Deep Check (Start/Mid/End)</option>
+                    </select>
+                </div>
+
+                <div class="setting-row" id="durationRowModal" style="display: none;">
+                    <label for="durationSelectModal" id="lblCheckDuration">Deep Check Duration:</label>
+                    <div style="display: flex; gap: 0.3rem;">
+                        <select id="durationSelectModal">
+                            <option value="1">1s</option>
+                            <option value="2">2s</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                        <input type="number" id="customSecModal" value="1" min="1" max="10" style="display: none;">
+                    </div>
+                </div>
+
+                <hr style="border-color: var(--border); margin: 1rem 0;">
+
+                <p id="modalDesc">Scan video files to verify header integrity and playback stream health.</p>
+                <ul>
+                    <li id="mStep1">Select a local directory or individual video files.</li>
+                    <li id="mStep2"><strong>Fast Check:</strong> Verifies headers and jumps to middle.</li>
+                    <li id="mStep3"><strong>Deep Check:</strong> Plays start, middle, and end segments.</li>
+                    <li id="mStep4">Click any file entry in the log to preview its test segments.</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Report Format Selection Modal -->
+        <div id="reportModal" class="modal">
+            <div class="modal-content" style="max-width: 360px;">
+                <div class="modal-header">
+                    <h3 id="reportTitle">Export Report</h3>
+                    <button id="closeReportBtn" class="icon-btn">✕</button>
+                </div>
+                <p id="reportDesc">Choose the output format for your report:</p>
+                <div style="display: flex; gap: 0.5rem; margin-top: 1rem; justify-content: flex-end;">
+                    <button id="exportTxtBtn" class="primary">TXT</button>
+                    <button id="exportJsonBtn" class="primary">JSON</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- File Inputs -->
+        <input type="file" id="dirPicker" webkitdirectory directory multiple style="display: none;">
+        <input type="file" id="filePicker" multiple accept="video/*" style="display: none;">
+        
+        <div class="progress-container">
+            <div class="progress-info">
+                <span id="uiTitle" style="font-weight: 700; color: var(--accent); letter-spacing: 1px;">VIDCHEX</span>
+                <span id="statusText">Ready</span>
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <span id="progressPercent">0%</span>
+                    <span id="etaText">ETA: --</span>
+                </div>
+            </div>
+            <progress id="progressBar" value="0" max="100"></progress>
+        </div>
+
+        <div class="content-container">
+            <div id="log">Ready to scan... Use buttons below to select files or a folder.</div>
+            
+            <div class="preview-pane" id="previewPane">
+                <div class="preview-header-row" id="previewToggle">
+                    <span class="label" id="previewLabel">Live Preview</span>
+                    <svg class="meta-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </div>
+                <div class="preview-content" id="previewContent">
+                    <video id="previewVideo" muted playsinline></video>
+                    
+                    <div class="meta-box" id="metaBox" title="Click to expand/collapse">
+                        <div class="meta-header-row">
+                            <strong id="metaFileName">No File Selected</strong>
+                            <svg class="meta-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </div>
+                        <div class="meta-content" id="metaContent">
+                            <div><span id="lblSizeFormatted">Size</span>: <span id="metaSizeFormatted">--</span></div>
+                            <div><span id="lblModified">Last Modified</span>: <span id="metaModified">--</span></div>
+                            <div><span id="lblDuration">Duration</span>: <span id="metaDuration">--</span></div>
+                            <div><span id="lblRes">Resolution</span>: <span id="metaRes">--</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dedicated Transparent Toolbar Container (In-flow layout) -->
+        <div id="toolbarContainer" class="toolbar">
+            <button id="folderBtn" class="primary icon-btn" title="Select Folder">
+                <svg class="svg-icon" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+            </button>
+            <button id="filesBtn" class="icon-btn" title="Select Files">
+                <svg class="svg-icon" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line><line x1="2" y1="7" x2="7" y2="7"></line><line x1="2" y1="17" x2="7" y2="17"></line><line x1="17" y1="17" x2="22" y2="17"></line><line x1="17" y1="7" x2="22" y2="7"></line></svg>
+            </button>
+            <button id="pauseBtn" class="icon-btn" title="Pause / Resume" disabled>
+                <svg id="pauseIcon" class="svg-icon" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                <svg id="playIcon" class="svg-icon" viewBox="0 0 24 24" style="display: none;"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            </button>
+            <button id="cancelBtn" class="danger icon-btn" title="Cancel Scan" disabled>
+                <svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+            </button>
+            <button id="saveBtn" class="icon-btn" title="Save Report" disabled>
+                <svg class="svg-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            </button>
+            <button id="gearBtn" class="icon-btn" title="Settings & Instructions">
+                <svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l-.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            </button>
+        </div>
+
+        <!-- Fixed Persistent Footer with VIDCHEX name -->
+        <footer>
+            <div></div>
+            <div class="footer-center" style="display: flex; align-items: center; gap: 0.75rem;">
+                <span id="footerText">VIDCHEX v3.8 — © KAWN HYPERSYSTEMS</span>
+                <select id="footerLangSelect" class="footer-lang-select lang-select-input">
+                    <option value="en">EN</option>
+                    <option value="es">ES</option>
+                    <option value="fr">FR</option>
+                    <option value="de">DE</option>
+                    <option value="ch">CH</option>
+                </select>
+            </div>
+            <div></div>
+        </footer>
+    </div>
+
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            const currentYear = new Date().getFullYear();
+            document.getElementById('footerText').textContent = `VIDCHEX v3.8 — © ${currentYear} KAWN HYPERSYSTEMS`;
+            
+            // Auto-collapse metadata box on small screens
+            handleResponsiveLayout();
+
+            const splash = document.getElementById('splashScreen');
+            const app = document.getElementById('appContainer');
+            
+            setTimeout(() => {
+                splash.style.opacity = '1';
+            }, 100);
+
+            setTimeout(() => {
+                app.style.opacity = '1';
+                splash.style.opacity = '0';
+                setTimeout(() => splash.style.display = 'none', 1000);
+            }, 2000);
+        });
+
+        // Preview Pane Collapse Toggle
+        document.addEventListener('DOMContentLoaded', () => {
+            const previewToggle = document.getElementById('previewToggle');
+            const previewPane = document.getElementById('previewPane');
+            if (previewToggle && previewPane) {
+                previewToggle.addEventListener('click', () => {
+                    previewPane.classList.toggle('collapsed');
+                });
+            }
+        });
+
+        // Auto-collapse metadata box on small screens & handle window resizing
+        function handleResponsiveLayout() {
+            const metaBox = document.getElementById('metaBox');
+            if (metaBox && window.innerWidth <= 768) {
+                if (!metaBox.classList.contains('collapsed')) {
+                    metaBox.classList.add('collapsed');
+                }
+            } else if (metaBox) {
+                metaBox.classList.remove('collapsed');
+            }
+        }
+
+        window.addEventListener('resize', handleResponsiveLayout);
+
+        const i18n = {
+            en: {
+                title: "VIDCHEX",
+                folderTitle: "Select Folder",
+                filesTitle: "Select Files",
+                gearTitle: "Settings & Instructions",
+                pauseTitle: "Pause / Resume",
+                cancelTitle: "Cancel Scan",
+                saveBtnTitle: "Save Report",
+                retryBtn: "Retry",
+                retryAllBtn: "Retry All Failed",
+                optDeep: "Deep Check (Start/Mid/End)",
+                optFast: "Fast Check (Metadata + Seek)",
+                ready: "Ready to scan... Use buttons below to select files or a folder.",
+                statusReady: "Ready",
+                statusScanning: "Scanning...",
+                statusPaused: "Paused",
+                statusCancelled: "Cancelled",
+                statusComplete: "Scan Complete",
+                starting: "Starting scan of {count} video file(s)...",
+                checking: "Checking ({current}/{total}): {name}",
+                summaryTpl: "--- Scan Complete --- Total checked: {total} | Passed: {passed} | Failed: {failed}",
+                noFiles: "No valid video files found in the selection.",
+                previewText: "Live Preview",
+                noFileSelected: "No File Selected",
+                sizeFormattedLabel: "Size",
+                modifiedLabel: "Last Modified",
+                durationLabel: "Duration",
+                resLabel: "Resolution",
+                modalTitle: "Settings & Instructions",
+                lblLang: "Language:",
+                lblDepthMode: "Analysis Depth Mode:",
+                lblCheckDuration: "Deep Check Duration:",
+                modalDesc: "Scan video files to verify header integrity and playback stream health.",
+                mStep1: "Select a local directory or individual video files.",
+                mStep2: "Fast Check: Verifies headers and jumps to middle.",
+                mStep3: "Deep Check: Plays start, middle, and end segments.",
+                mStep4: "Click any file entry in the log to preview its test segments.",
+                reportTitle: "Export Report",
+                reportDesc: "Choose the output format for your report:"
+            },
+            es: {
+                title: "VIDCHEX",
+                folderTitle: "Seleccionar Carpeta",
+                filesTitle: "Seleccionar Archivos",
+                gearTitle: "Ajustes e Instrucciones",
+                pauseTitle: "Pausar / Reanudar",
+                cancelTitle: "Cancelar Escaneo",
+                saveBtnTitle: "Guardar Informe",
+                retryBtn: "Reintentar",
+                retryAllBtn: "Reintentar Todo Fallido",
+                optDeep: "Revisión Profunda (Inicio/Medio/Fin)",
+                optFast: "Revisión Rápida (Metadatos + Búsqueda)",
+                ready: "Listo para escanear... Usa los botones de abajo para seleccionar.",
+                statusReady: "Listo",
+                statusScanning: "Escaneando...",
+                statusPaused: "Pausado",
+                statusCancelled: "Cancelado",
+                statusComplete: "Escaneo Completo",
+                starting: "Iniciando escaneo de {count} archivo(s) de video...",
+                checking: "Verificando ({current}/{total}): {name}",
+                summaryTpl: "--- Escaneo Completo --- Total verificados: {total} | Aprobados: {passed} | Fallidos: {failed}",
+                noFiles: "No se encontraron archivos de video válidos en la selección.",
+                previewText: "Vista Previa",
+                noFileSelected: "Ningún archivo seleccionado",
+                sizeFormattedLabel: "Tamaño",
+                modifiedLabel: "Última Modificación",
+                durationLabel: "Duración",
+                resLabel: "Resolución",
+                modalTitle: "Ajustes e Instrucciones",
+                lblLang: "Idioma:",
+                lblDepthMode: "Modo de Análisis:",
+                lblCheckDuration: "Duración de Revisión Profunda:",
+                modalDesc: "Escanee archivos de video para verificar la integridad de encabezados y reproducción.",
+                mStep1: "Seleccione un directorio local o archivos individuales.",
+                mStep2: "Revisión Rápida: Verifica encabezados y salta al medio.",
+                mStep3: "Revisión Profunda: Reproduce segmentos iniciales, medios y finales.",
+                mStep4: "Haga clic en cualquier archivo de la lista para ver la vista previa.",
+                reportTitle: "Exportar Informe",
+                reportDesc: "Elija el formato de salida para su informe:"
+            },
+            fr: {
+                title: "VIDCHEX",
+                folderTitle: "Sélectionner un Dossier",
+                filesTitle: "Sélectionner des Fichiers",
+                gearTitle: "Paramètres et Instructions",
+                pauseTitle: "Pause / Reprendre",
+                cancelTitle: "Annuler l'analyse",
+                saveBtnTitle: "Enregistrer le Rapport",
+                retryBtn: "Réessayer",
+                retryAllBtn: "Réessayer tous les échecs",
+                optDeep: "Vérification Approfondie (Début/Milieu/Fin)",
+                optFast: "Vérification Rapide (Métadonnées + Recherche)",
+                ready: "Prêt à scanner... Utilisez les boutons ci-dessous.",
+                statusReady: "Prêt",
+                statusScanning: "Analyse en cours...",
+                statusPaused: "En Pause",
+                statusCancelled: "Annulé",
+                statusComplete: "Analyse Terminée",
+                starting: "Démarrage de l'analyse de {count} fichier(s) vidéo...",
+                checking: "Vérification ({current}/{total}) : {name}",
+                summaryTpl: "--- Analyse Terminée --- Total vérifié : {total} | Réussi : {passed} | Échoué : {failed}",
+                noFiles: "Aucun fichier vidéo valide trouvé dans la sélection.",
+                previewText: "Aperçu Direct",
+                noFileSelected: "Aucun fichier sélectionné",
+                sizeFormattedLabel: "Taille",
+                modifiedLabel: "Dernière modification",
+                durationLabel: "Durée",
+                resLabel: "Résolution",
+                modalTitle: "Paramètres et Instructions",
+                lblLang: "Langue :",
+                lblDepthMode: "Mode d'Analyse :",
+                lblCheckDuration: "Durée d'analyse approfondie :",
+                modalDesc: "Analysez les fichiers vidéo pour vérifier l'intégrité des métadonnées et du flux.",
+                mStep1: "Sélectionnez un dossier local ou des fichiers individuels.",
+                mStep2: "Vérification Rapide : Vérifie les métadonnées et saute au milieu.",
+                mStep3: "Vérification Approfondie : Lit les segments début, milieu et fin.",
+                mStep4: "Cliquez sur n'importe quel fichier dans la liste pour prévisualiser ses segments.",
+                reportTitle: "Exporter le Rapport",
+                reportDesc: "Choisissez le format d'exportation de votre rapport :"
+            },
+            de: {
+                title: "VIDCHEX",
+                folderTitle: "Ordner Auswählen",
+                filesTitle: "Dateien Auswählen",
+                gearTitle: "Einstellungen & Anleitung",
+                pauseTitle: "Pause / Fortsetzen",
+                cancelTitle: "Scan Abbrechen",
+                saveBtnTitle: "Bericht Speichern",
+                retryBtn: "Wiederholen",
+                retryAllBtn: "Alle Fehlgeschlagenen Wiederholen",
+                optDeep: "Tiefenprüfung (Start/Mitte/Ende)",
+                optFast: "Schnellprüfung (Metadaten + Suche)",
+                ready: "Bereit zum Scannen... Schaltflächen unten verwenden.",
+                statusReady: "Bereit",
+                statusScanning: "Scannen...",
+                statusPaused: "Pausiert",
+                statusCancelled: "Abgebrochen",
+                statusComplete: "Scan Abgeschlossen",
+                starting: "Starte Scan von {count} Videodatei(en)...",
+                checking: "Prüfe ({current}/{total}): {name}",
+                summaryTpl: "--- Scan Abgeschlossen --- Gesamt geprüft: {total} | Bestanden: {passed} | Fehlgeschlagen: {failed}",
+                noFiles: "Keine gültigen Videodateien in der Auswahl gefunden.",
+                previewText: "Live-Vorschau",
+                noFileSelected: "Keine Datei ausgewählt",
+                sizeFormattedLabel: "Größe",
+                modifiedLabel: "Zuletzt geändert",
+                durationLabel: "Dauer",
+                resLabel: "Auflösung",
+                modalTitle: "Einstellungen & Anleitung",
+                lblLang: "Sprache:",
+                lblDepthMode: "Analysemodus:",
+                lblCheckDuration: "Tiefenprüfungsdauer:",
+                modalDesc: "Scannen Sie Videodateien zur Überprüfung der Header- und Wiedergabeintegrität.",
+                mStep1: "Wählen Sie ein lokales Verzeichnis oder einzelne Dateien.",
+                mStep2: "Schnellprüfung: Prüft Metadaten und springt zur Mitte.",
+                mStep3: "Tiefenprüfung: Spielt Start-, Mitten- und Endsegmente ab.",
+                mStep4: "Klicken Sie auf eine Datei in der Liste für eine Vorschau.",
+                reportTitle: "Bericht Exportieren",
+                reportDesc: "Wählen Sie das Ausgabeformat für Ihren Bericht:"
+            },
+            ch: {
+                title: "VIDCHEX",
+                folderTitle: "选择文件夹",
+                filesTitle: "选择文件",
+                gearTitle: "设置与说明",
+                pauseTitle: "暂停 / 继续",
+                cancelTitle: "取消扫描",
+                saveBtnTitle: "保存报告",
+                retryBtn: "重试",
+                retryAllBtn: "重试所有失败项",
+                optDeep: "深度检查 (开始/中间/结束)",
+                optFast: "快速检查 (元数据 + 定位)",
+                ready: "准备扫描... 请使用下方按钮选择文件或文件夹。",
+                statusReady: "就绪",
+                statusScanning: "正在扫描...",
+                statusPaused: "已暂停",
+                statusCancelled: "已取消",
+                statusComplete: "扫描完成",
+                starting: "开始扫描 {count} 个视频文件...",
+                checking: "正在检查 ({current}/{total}): {name}",
+                summaryTpl: "--- 扫描完成 --- 总计检查: {total} | 通过: {passed} | 失败: {failed}",
+                noFiles: "所选内容中未找到有效的视频文件。",
+                previewText: "实时预览",
+                noFileSelected: "未选择文件",
+                sizeFormattedLabel: "大小",
+                modifiedLabel: "修改时间",
+                durationLabel: "时长",
+                resLabel: "分辨率",
+                modalTitle: "设置与说明",
+                lblLang: "语言:",
+                lblDepthMode: "分析深度模式:",
+                lblCheckDuration: "深度检查时长:",
+                modalDesc: "扫描视频文件以验证元数据完整性与播放流健康度。",
+                mStep1: "选择本地目录或单个视频文件。",
+                mStep2: "快速检查：验证文件头并跳转至中间位置。",
+                mStep3: "深度检查：播放开始、中间和结束片段。",
+                mStep4: "在日志列表中点击任意文件即可预览其片段。",
+                reportTitle: "导出报告",
+                reportDesc: "选择报告的输出格式："
+            }
+        };
+
+        let currentLang = 'en';
+
+        const folderBtn = document.getElementById('folderBtn');
+        const filesBtn = document.getElementById('filesBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const pauseIcon = document.getElementById('pauseIcon');
+        const playIcon = document.getElementById('playIcon');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const saveBtn = document.getElementById('saveBtn');
+        const gearBtn = document.getElementById('gearBtn');
+        const settingsModal = document.getElementById('settingsModal');
+        const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+        
+        const reportModal = document.getElementById('reportModal');
+        const closeReportBtn = document.getElementById('closeReportBtn');
+        const exportTxtBtn = document.getElementById('exportTxtBtn');
+        const exportJsonBtn = document.getElementById('exportJsonBtn');
+
+        const dirPicker = document.getElementById('dirPicker');
+        const filePicker = document.getElementById('filePicker');
+        const logDiv = document.getElementById('log');
+        
+        const langSelectInputs = document.querySelectorAll('.lang-select-input');
+        const depthSelectModal = document.getElementById('depthSelectModal');
+        const durationSelectModal = document.getElementById('durationSelectModal');
+        const customSecModal = document.getElementById('customSecModal');
+        const durationRowModal = document.getElementById('durationRowModal');
+
+        const progressBar = document.getElementById('progressBar');
+        const statusText = document.getElementById('statusText');
+        const etaText = document.getElementById('etaText');
+        const previewVideo = document.getElementById('previewVideo');
+        const previewLabel = document.getElementById('previewLabel');
+
+        const metaBox = document.getElementById('metaBox');
+        const metaFileName = document.getElementById('metaFileName');
+        const metaSizeFormatted = document.getElementById('metaSizeFormatted');
+        const metaModified = document.getElementById('metaModified');
+        const metaDuration = document.getElementById('metaDuration');
+        const metaRes = document.getElementById('metaRes');
+
+        const lblSizeFormatted = document.getElementById('lblSizeFormatted');
+        const lblModified = document.getElementById('lblModified');
+        const lblDuration = document.getElementById('lblDuration');
+        const lblRes = document.getElementById('lblRes');
+
+        let scanResults = [];
+        let loadedFilesMap = new Map();
+        let isPaused = false;
+        let isCancelled = false;
+        let activeScanRunning = false;
+        let isManualPreviewPlaying = false;
+        let userScrolledUp = false;
+
+        gearBtn.addEventListener('click', () => settingsModal.style.display = 'flex');
+        closeSettingsBtn.addEventListener('click', () => settingsModal.style.display = 'none');
+        
+        saveBtn.addEventListener('click', () => reportModal.style.display = 'flex');
+        closeReportBtn.addEventListener('click', () => reportModal.style.display = 'none');
+
+        window.addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal')) {
+                e.target.style.display = 'none';
+            }
+        });
+
+        function setupPickerTrigger(button, input) {
+            const triggerPicker = (e) => {
+                e.preventDefault();
+                input.value = '';
+                input.click();
+            };
+            button.addEventListener('click', triggerPicker);
+        }
+
+        setupPickerTrigger(folderBtn, dirPicker);
+        setupPickerTrigger(filesBtn, filePicker);
+
+        dirPicker.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files.length > 0) {
+                processFileList(Array.from(e.target.files));
+            }
+        });
+
+        filePicker.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files.length > 0) {
+                processFileList(Array.from(e.target.files));
+            }
+        });
+
+        logDiv.addEventListener('click', async (e) => {
+            const retryBtnTarget = e.target.closest('.inline-retry-btn');
+            if (retryBtnTarget) {
+                e.stopPropagation();
+                const fileName = decodeURIComponent(retryBtnTarget.getAttribute('data-filename'));
+                await retrySingleFile(fileName);
+                return;
+            }
+
+            const summaryRetryBtn = e.target.closest('#summaryRetryAllBtn');
+            if (summaryRetryBtn) {
+                e.stopPropagation();
+                await retryAllFailedFiles();
+                return;
+            }
+
+            const target = e.target.closest('.log-item');
+            if (!target) return;
+            const fileName = decodeURIComponent(target.getAttribute('data-filename'));
+            const file = loadedFilesMap.get(fileName);
+            if (file) {
+                await playSelectedFilePreview(file);
+            }
+        });
+
+        async function retrySingleFile(fileName) {
+            const file = loadedFilesMap.get(fileName);
+            if (!file) return;
+
+            log(`🔄 Retrying: ${fileName}...`, 'warning');
+            const depth = depthSelectModal.value;
+            const segmentDuration = getCheckDuration();
+
+            const result = await testVideoFile(file, depth, segmentDuration);
+            
+            const index = scanResults.findIndex(r => r.file === fileName);
+            if (index !== -1) {
+                scanResults[index] = {
+                    file: fileName,
+                    status: result.healthy ? 'HEALTHY' : 'ERROR',
+                    healthy: result.healthy,
+                    category: result.category || null
+                };
+            }
+
+            if (result.healthy) {
+                log(`✔ RE-CHECK OK: ${fileName}`, 'success', fileName);
+            } else {
+                log(`✖ RE-CHECK ERROR [${result.category}]: ${fileName}`, 'error', fileName, true);
+            }
+        }
+
+        async function retryAllFailedFiles() {
+            const failedNames = scanResults.filter(r => !r.healthy).map(r => r.file);
+            if (failedNames.length === 0) return;
+
+            log(`🔄 Retrying all ${failedNames.length} failed file(s)...`, 'warning');
+            const depth = depthSelectModal.value;
+            const segmentDuration = getCheckDuration();
+
+            for (const name of failedNames) {
+                const file = loadedFilesMap.get(name);
+                if (!file) continue;
+
+                const result = await testVideoFile(file, depth, segmentDuration);
+                
+                const index = scanResults.findIndex(r => r.file === name);
+                if (index !== -1) {
+                    scanResults[index] = {
+                        file: name,
+                        status: result.healthy ? 'HEALTHY' : 'ERROR',
+                        healthy: result.healthy,
+                        category: result.category || null
+                    };
+                }
+
+                if (result.healthy) {
+                    log(`✔ RE-CHECK OK: ${name}`, 'success', name);
+                } else {
+                    log(`✖ RE-CHECK ERROR [${result.category}]: ${name}`, 'error', name, true);
+                }
+            }
+            log(`--- Retry All Complete ---`, 'info');
+        }
+
+        metaBox.addEventListener('click', () => {
+            metaBox.classList.toggle('collapsed');
+        });
+
+        logDiv.addEventListener('scroll', () => {
+            const isAtBottom = logDiv.scrollHeight - logDiv.scrollTop - logDiv.clientHeight < 30;
+            userScrolledUp = !isAtBottom;
+        });
+
+        depthSelectModal.addEventListener('change', () => {
+            if (depthSelectModal.value === 'fast') {
+                durationRowModal.style.display = 'none';
+            } else {
+                durationRowModal.style.display = 'flex';
+            }
+        });
+
+        durationSelectModal.addEventListener('change', () => {
+            if (durationSelectModal.value === 'custom') {
+                customSecModal.style.display = 'inline-block';
+            } else {
+                customSecModal.style.display = 'none';
+            }
+        });
+
+        function getCheckDuration() {
+            if (depthSelectModal.value === 'fast') return 1000;
+            if (durationSelectModal.value === 'custom') {
+                const val = parseFloat(customSecModal.value);
+                return isNaN(val) || val <= 0 ? 1000 : val * 1000;
+            }
+            return parseInt(durationSelectModal.value) * 1000;
+        }
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            langSelectInputs.forEach(select => select.value = lang);
+            updateTexts();
+        }
+
+        langSelectInputs.forEach(select => {
+            select.addEventListener('change', (e) => setLanguage(e.target.value));
+        });
+
+        function updateTexts() {
+            const t = i18n[currentLang];
+            document.getElementById('uiTitle').textContent = t.title;
+            folderBtn.title = t.folderTitle;
+            filesBtn.title = t.filesTitle;
+            gearBtn.title = t.gearTitle;
+            pauseBtn.title = t.pauseTitle;
+            cancelBtn.title = t.cancelTitle;
+            saveBtn.title = t.saveBtnTitle;
+            document.getElementById('optDeep').textContent = t.optDeep;
+            document.getElementById('optFast').textContent = t.optFast;
+            previewLabel.textContent = t.previewText;
+            document.getElementById('modalTitle').textContent = t.modalTitle;
+            document.getElementById('modalDesc').textContent = t.modalDesc;
+            document.getElementById('lblLang').textContent = t.lblLang;
+            document.getElementById('lblDepthMode').textContent = t.lblDepthMode;
+            document.getElementById('lblCheckDuration').textContent = t.lblCheckDuration;
+            document.getElementById('mStep1').textContent = t.mStep1;
+            document.getElementById('mStep2').textContent = t.mStep2;
+            document.getElementById('mStep3').textContent = t.mStep3;
+            document.getElementById('mStep4').textContent = t.mStep4;
+            
+            document.getElementById('reportTitle').textContent = t.reportTitle;
+            document.getElementById('reportDesc').textContent = t.reportDesc;
+
+            lblSizeFormatted.textContent = t.sizeFormattedLabel;
+            lblModified.textContent = t.modifiedLabel;
+            lblDuration.textContent = t.durationLabel;
+            lblRes.textContent = t.resLabel;
+
+            if (metaFileName.textContent.startsWith("No File") || 
+                metaFileName.textContent.startsWith("Ningún") || 
+                metaFileName.textContent.startsWith("Aucun") || 
+                metaFileName.textContent.startsWith("Keine") || 
+                metaFileName.textContent.startsWith("未选择")) {
+                metaFileName.textContent = t.noFileSelected;
+            }
+
+            if (!activeScanRunning && logDiv.textContent.includes("Ready")) {
+                logDiv.textContent = t.ready;
+                statusText.textContent = t.statusReady;
+            }
+
+            // Update summary log language if scan is complete
+            const summarySpan = document.getElementById('summarySpan');
+            if (summarySpan) {
+                const total = summarySpan.getAttribute('data-total');
+                const passed = summarySpan.getAttribute('data-passed');
+                const failed = summarySpan.getAttribute('data-failed');
+                const timestampStr = summarySpan.textContent.split(' ')[0];
+                summarySpan.textContent = `${timestampStr} ${t.summaryTpl.replace('{total}', total).replace('{passed}', passed).replace('{failed}', failed)}`;
+            }
+            const summaryRetryBtn = document.getElementById('summaryRetryAllBtn');
+            if (summaryRetryBtn) {
+                summaryRetryBtn.textContent = t.retryAllBtn;
+            }
+        }
+
+        function log(message, type = 'info', fileName = null, hasError = false) {
+            const colorClass = type === 'success' ? 'success' : type === 'error' ? 'error' : type === 'warning' ? 'warning' : '';
+            const timestamp = new Date().toLocaleTimeString();
+            const fileAttr = fileName ? `data-filename="${encodeURIComponent(fileName)}"` : '';
+            const itemClass = fileName ? 'log-item' : '';
+            
+            let retryHtml = '';
+            if (hasError && fileName) {
+                const t = i18n[currentLang];
+                retryHtml = `<button class="inline-retry-btn" data-filename="${encodeURIComponent(fileName)}">${t.retryBtn}</button>`;
+            }
+
+            if (fileName) {
+                logDiv.insertAdjacentHTML('beforeend', `<div class="${colorClass} ${itemClass}" ${fileAttr}><span>[${timestamp}] ${message}</span>${retryHtml}</div>`);
+            } else {
+                logDiv.insertAdjacentHTML('beforeend', `<div class="${colorClass}">[${timestamp}] ${message}</div>`);
+            }
+
+            if (!userScrolledUp) {
+                logDiv.scrollTop = logDiv.scrollHeight;
+            }
+        }
+
+        function logSummary(total, passed, failed) {
+            const timestamp = new Date().toLocaleTimeString();
+            const t = i18n[currentLang];
+            let retryAllHtml = failed > 0 ? `<button id="summaryRetryAllBtn" class="primary" style="padding: 2px 6px; font-size: 0.75rem;">${t.retryAllBtn}</button>` : '';
+
+            logDiv.insertAdjacentHTML('beforeend', `<div class="summary-row"><span id="summarySpan" data-total="${total}" data-passed="${passed}" data-failed="${failed}">[${timestamp}] ${t.summaryTpl.replace('{total}', total).replace('{passed}', passed).replace('{failed}', failed)}</span>${retryAllHtml}</div>`);
+            
+            if (!userScrolledUp) {
+                logDiv.scrollTop = logDiv.scrollHeight;
+            }
+        }
+
+        async function playSelectedFilePreview(file) {
+            let previousPauseState = isPaused;
+            if (activeScanRunning) {
+                isPaused = true;
+                pauseIcon.style.display = 'none';
+                playIcon.style.display = 'block';
+                statusText.textContent = i18n[currentLang].statusPaused;
+            }
+            
+            isManualPreviewPlaying = true;
+            await testVideoFile(file, depthSelectModal.value, getCheckDuration());
+            isManualPreviewPlaying = false;
+
+            if (activeScanRunning && !previousPauseState) {
+                isPaused = false;
+                pauseIcon.style.display = 'block';
+                playIcon.style.display = 'none';
+                statusText.textContent = i18n[currentLang].statusScanning;
+            }
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        pauseBtn.addEventListener('click', () => {
+            const t = i18n[currentLang];
+            isPaused = !isPaused;
+            if (isPaused) {
+                pauseIcon.style.display = 'none';
+                playIcon.style.display = 'block';
+                statusText.textContent = t.statusPaused;
+            } else {
+                pauseIcon.style.display = 'block';
+                playIcon.style.display = 'none';
+                statusText.textContent = t.statusScanning;
+            }
+        });
+
+        cancelBtn.addEventListener('click', () => {
+            isCancelled = true;
+            statusText.textContent = i18n[currentLang].statusCancelled;
+        });
+
+        exportTxtBtn.addEventListener('click', () => generateReport('txt'));
+        exportJsonBtn.addEventListener('click', () => generateReport('json'));
+
+        function generateReport(format) {
+            reportModal.style.display = 'none';
+            let content, filename, mimeType;
+
+            if (format === 'json') {
+                content = JSON.stringify({
+                    scanDate: new Date().toISOString(),
+                    totalChecked: scanResults.length,
+                    passed: scanResults.filter(r => r.healthy).length,
+                    failed: scanResults.filter(r => !r.healthy).length,
+                    results: scanResults
+                }, null, 2);
+                filename = `vidchex-scan-report-${Date.now()}.json`;
+                mimeType = 'application/json';
+            } else {
+                content = `VIDCHEX INTEGRITY CHECK REPORT - ${new Date().toLocaleString()}\n` +
+                          `==================================================\n\n` +
+                          scanResults.map(r => `[${r.status}] ${r.file}` + (r.category ? ` (${r.category})` : '')).join('\n');
+                filename = `vidchex-scan-report-${Date.now()}.txt`;
+                mimeType = 'text/plain';
+            }
+
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        async function processFileList(rawFiles) {
+            const t = i18n[currentLang];
+            const files = rawFiles.filter(file => {
+                const ext = file.name.split('.').pop().toLowerCase();
+                return ['mp4', 'mkv', 'mov', 'webm', 'm4v', 'avi'].includes(ext);
+            });
+
+            if (files.length === 0) {
+                alert(t.noFiles);
+                return;
+            }
+
+            files.forEach(f => loadedFilesMap.set(f.name, f));
+
+            if (logDiv.textContent.includes("Ready to scan")) {
+                logDiv.innerHTML = '';
+            }
+
+            isPaused = false;
+            isCancelled = false;
+            userScrolledUp = false;
+            activeScanRunning = true;
+            folderBtn.disabled = true;
+            filesBtn.disabled = true;
+            pauseBtn.disabled = false;
+            cancelBtn.disabled = false;
+            saveBtn.disabled = false;
+            pauseIcon.style.display = 'block';
+            playIcon.style.display = 'none';
+
+            log(t.starting.replace('{count}', files.length));
+            const depth = depthSelectModal.value;
+            const segmentDuration = getCheckDuration();
+
+            let successCount = 0;
+            let errorCount = 0;
+            const startTime = Date.now();
+
+            for (let i = 0; i < files.length; i++) {
+                if (isCancelled) {
+                    log("Scan cancelled by user.", "warning");
+                    break;
+                }
+
+                while (isPaused || isManualPreviewPlaying) {
+                    await new Promise(r => setTimeout(r, 200));
+                    if (isCancelled) break;
+                }
+                if (isCancelled) break;
+
+                const file = files[i];
+                const progressPercent = Math.round((i / files.length) * 100);
+                progressBar.value = progressPercent;
+                
+                // Update progress percentage UI element
+                const progressPercentElem = document.getElementById('progressPercent');
+                if (progressPercentElem) {
+                    progressPercentElem.textContent = `${progressPercent}%`;
+                }
+
+                statusText.textContent = t.checking.replace('{current}', i + 1).replace('{total}', files.length).replace('{name}', file.name);
+
+                if (i > 0) {
+                    const elapsed = (Date.now() - startTime) / 1000;
+                    const avgTimePerFile = elapsed / i;
+                    const remainingFiles = files.length - i;
+                    const etaSec = Math.round(avgTimePerFile * remainingFiles);
+                    etaText.textContent = `ETA: ${Math.floor(etaSec / 60)}m ${etaSec % 60}s`;
+                }
+
+                const result = await testVideoFile(file, depth, segmentDuration);
+                
+                if (result.healthy) {
+                    successCount++;
+                    log(`✔ OK: ${file.name}`, 'success', file.name);
+                    scanResults.push({ file: file.name, status: 'HEALTHY', healthy: true });
+                } else {
+                    errorCount++;
+                    log(`✖ ERROR [${result.category}]: ${file.name}`, 'error', file.name, true);
+                    scanResults.push({ file: file.name, status: 'ERROR', healthy: false, category: result.category });
+                }
+            }
+
+            progressBar.value = isCancelled ? progressBar.value : 100;
+            const finalPercent = isCancelled ? Math.round((scanResults.length / files.length) * 100) : 100;
+            const progressPercentElem = document.getElementById('progressPercent');
+            if (progressPercentElem) {
+                progressPercentElem.textContent = `${finalPercent}%`;
+            }
+
+            statusText.textContent = isCancelled ? t.statusCancelled : t.statusComplete;
+            etaText.textContent = 'ETA: 0s';
+            logSummary(scanResults.length, successCount, errorCount);
+
+            activeScanRunning = false;
+            folderBtn.disabled = false;
+            filesBtn.disabled = false;
+            pauseBtn.disabled = true;
+            cancelBtn.disabled = true;
+            saveBtn.disabled = scanResults.length === 0;
+
+            pauseIcon.style.display = 'block';
+            playIcon.style.display = 'none';
+        }
+
+        function testVideoFile(file, depth, segmentDuration) {
+            return new Promise((resolve) => {
+                const url = URL.createObjectURL(file);
+                
+                metaFileName.textContent = file.name;
+                metaSizeFormatted.textContent = formatBytes(file.size);
+                metaModified.textContent = file.lastModified ? new Date(file.lastModified).toLocaleString() : '--';
+                metaDuration.textContent = '--';
+                metaRes.textContent = '--';
+
+                let cleanedUp = false;
+                const cleanup = (result, category = null) => {
+                    if (cleanedUp) return;
+                    cleanedUp = true;
+                    previewVideo.pause();
+                    previewVideo.src = "";
+                    URL.revokeObjectURL(url);
+                    resolve({ healthy: result, category });
+                };
+
+                const timeoutLimit = depth === 'deep' ? 25000 : 12000;
+                const timer = setTimeout(() => {
+                    cleanup(false, 'Timeout / Hanging');
+                }, timeoutLimit);
+
+                previewVideo.onerror = () => {
+                    clearTimeout(timer);
+                    cleanup(false, 'Playback / Decoding Error');
+                };
+
+                previewVideo.onloadedmetadata = async () => {
+                    if (isNaN(previewVideo.duration) || previewVideo.duration <= 0) {
+                        clearTimeout(timer);
+                        cleanup(false, 'Corrupted Headers / Metadata');
+                        return;
+                    }
+
+                    const duration = previewVideo.duration;
+                    metaDuration.textContent = `${Math.floor(duration / 60)}m ${Math.floor(duration % 60)}s`;
+                    metaRes.textContent = `${previewVideo.videoWidth} x ${previewVideo.videoHeight}`;
+
+                    if (depth === 'fast') {
+                        try {
+                            previewVideo.currentTime = duration / 2;
+                        } catch (e) {
+                            clearTimeout(timer);
+                            cleanup(false, 'Corrupted Headers / Metadata');
+                        }
+                    } else {
+                        const checkPoints = [0, duration / 2, Math.max(0, duration - (segmentDuration / 1000))];
+                        let currentIndex = 0;
+
+                        const processNextSegment = async () => {
+                            if (currentIndex >= checkPoints.length) {
+                                clearTimeout(timer);
+                                cleanup(true);
+                                return;
+                            }
+                            const targetTime = checkPoints[currentIndex];
+                            currentIndex++;
+                            try {
+                                previewVideo.currentTime = targetTime;
+                            } catch (e) {
+                                cleanup(false, 'Playback / Decoding Error');
+                            }
+                        };
+
+                        previewVideo.onseeked = async () => {
+                            try {
+                                await previewVideo.play();
+                                setTimeout(async () => {
+                                    previewVideo.pause();
+                                    await processNextSegment();
+                                }, segmentDuration);
+                            } catch (e) {
+                                cleanup(false, 'Playback / Decoding Error');
+                            }
+                        };
+
+                        processNextSegment();
+                    }
+                };
+
+                if (depth === 'fast') {
+                    previewVideo.onseeked = async () => {
+                        try {
+                            await previewVideo.play();
+                            setTimeout(() => {
+                                previewVideo.pause();
+                                clearTimeout(timer);
+                                cleanup(true);
+                            }, 1000);
+                        } catch (e) {
+                            clearTimeout(timer);
+                            cleanup(false, 'Playback / Decoding Error');
+                        }
+                    };
+                }
+
+                previewVideo.src = url;
+            });
+        }
+    </script>
+</body>
+</html>
